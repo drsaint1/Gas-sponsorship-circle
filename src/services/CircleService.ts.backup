@@ -1,0 +1,530 @@
+// Circle Modular Wallets Integration Service with NFT Support
+import { createPublicClient, http, getContract, createWalletClient, custom } from "viem";
+import { arbitrumSepolia } from "viem/chains";
+import { toCircleSmartAccount } from "@circle-fin/modular-wallets-core";
+import BikeRacerGameABI from '../abi/BikeRacerGame.json';
+import RaceTokenABI from '../abi/RaceToken.json';
+
+// Enhanced Contract ABIs for NFT functionality
+const GAME_CONTRACT_ABI = [
+  // NFT Bike Functions
+  {
+    "inputs": [
+      {"type": "uint8", "name": "_bikeType"},
+      {"type": "string", "name": "_bikeName"}
+    ],
+    "name": "mintBike",
+    "outputs": [{"type": "uint256", "name": "tokenId"}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"type": "address", "name": "player"}],
+    "name": "getPlayerBikes",
+    "outputs": [{"type": "uint256[]", "name": ""}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"type": "uint256", "name": "tokenId"}],
+    "name": "getBikeNFT",
+    "outputs": [{
+      "type": "tuple",
+      "name": "",
+      "components": [
+        {"name": "bikeType", "type": "uint8"},
+        {"name": "speed", "type": "uint256"},
+        {"name": "acceleration", "type": "uint256"},
+        {"name": "handling", "type": "uint256"},
+        {"name": "mintTime", "type": "uint256"},
+        {"name": "totalRaces", "type": "uint256"},
+        {"name": "totalWins", "type": "uint256"},
+        {"name": "name", "type": "string"}
+      ]
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  // Game Functions
+  {
+    "inputs": [
+      {"type": "uint256", "name": "_bikeTokenId"},
+      {"type": "uint8", "name": "_gameMode"}
+    ],
+    "name": "startGame",
+    "outputs": [{"type": "uint256", "name": "sessionId"}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"type": "uint256", "name": "sessionId"},
+      {"type": "uint256", "name": "score"},
+      {"type": "uint256", "name": "distance"},
+      {"type": "uint256", "name": "vehiclesDodged"}
+    ],
+    "name": "completeGame",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "claimRewards",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  // Token Transfer Functions
+  {
+    "inputs": [
+      {"type": "address", "name": "_to"},
+      {"type": "uint256", "name": "_amount"}
+    ],
+    "name": "transferTokensToPlayer",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"type": "address", "name": "player"}],
+    "name": "getPlayerRewards",
+    "outputs": [{"type": "uint256", "name": ""}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  // Daily Challenge Functions
+  {
+    "inputs": [{"type": "uint256", "name": "challengeDate"}],
+    "name": "getDailyChallenge",
+    "outputs": [
+      {"type": "uint256", "name": "targetScore"},
+      {"type": "uint256", "name": "rewardAmount"},
+      {"type": "bool", "name": "active"}
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"type": "address", "name": "player"},
+      {"type": "uint256", "name": "challengeDate"}
+    ],
+    "name": "hasCompletedDailyChallenge",
+    "outputs": [{"type": "bool", "name": ""}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "updateDailyChallenge",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+] as const;
+
+const USDC_ABI = [
+  {
+    "inputs": [{"type": "address", "name": "account"}],
+    "name": "balanceOf",
+    "outputs": [{"type": "uint256", "name": ""}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"type": "address", "name": "to"},
+      {"type": "uint256", "name": "amount"}
+    ],
+    "name": "transfer",
+    "outputs": [{"type": "bool", "name": ""}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+] as const;
+
+export const defaultGameConfig = {
+  gameContract: '0x043C4F23fd8249B45C8f77D195fFC590df0d8606' as `0x${string}`,
+  usdcContract: '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d' as `0x${string}`,
+  raceToken: '0xDcABc350c1b7f4C6eC7F39804ec31eDF067800F0' as `0x${string}`,
+  practiceEntryFee: '0', // Free
+  rankedEntryFee: '5000000', // 5 USDC
+  sportsBikeMintPrice: '1000000', // 1 USDC
+  ladyBikeMintPrice: '3000000', // 3 USDC
+  chopperBikeMintPrice: '5000000', // 5 USDC
+  chain: arbitrumSepolia
+};
+
+// Enums matching contract
+export enum BikeType {
+  SPORTS = 0,
+  LADY = 1,
+  CHOPPER = 2
+}
+
+export enum GameMode {
+  PRACTICE = 0,
+  RANKED = 1,
+  DAILY_CHALLENGE = 2
+}
+
+export interface BikeNFT {
+  bikeType: BikeType;
+  speed: number;
+  acceleration: number;
+  handling: number;
+  mintTime: number;
+  totalRaces: number;
+  totalWins: number;
+  name: string;
+}
+
+export interface DailyChallenge {
+  targetScore: number;
+  rewardAmount: number;
+  active: boolean;
+  challengeDate: number;
+  completed: boolean;
+}
+
+interface TransactionResult {
+  success: boolean;
+  transactionHash?: string;
+  error?: string;
+  sessionId?: number;
+  tokenId?: number;
+}
+
+export class CircleService {
+  private publicClient: any;
+  private walletClient: any;
+  private gameContract: any;
+  private usdcContract: any;
+  private circleSmartAccount: any;
+  private isInitialized = false;
+  private eoaAddress: string = '';
+  private gameContractAddress = defaultGameConfig.gameContract;
+  private usdcAddress = defaultGameConfig.usdcContract;
+
+  constructor() {
+    this.publicClient = createPublicClient({
+      chain: arbitrumSepolia,
+      transport: http()
+    });
+  }
+
+  async initialize(): Promise<void> {
+    try {
+      this.gameContract = getContract({
+        address: this.gameContractAddress,
+        abi: BikeRacerGameABI,
+        client: this.publicClient
+      });
+
+      this.usdcContract = getContract({
+        address: this.usdcAddress,
+        abi: USDC_ABI,
+        client: this.publicClient
+      });
+      
+      this.isInitialized = true;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async connectWallet(): Promise<string> {
+    try {
+      if (typeof window.ethereum === 'undefined') {
+        throw new Error('MetaMask not detected. Please install MetaMask.');
+      }
+
+      const accounts = await window.ethereum.request({
+        method: 'eth_requestAccounts'
+      });
+
+      if (accounts.length === 0) {
+        throw new Error('No wallet accounts found');
+      }
+
+      this.eoaAddress = accounts[0];
+
+      this.walletClient = createWalletClient({
+        account: this.eoaAddress as `0x${string}`,
+        chain: arbitrumSepolia,
+        transport: custom(window.ethereum)
+      });
+
+      this.circleSmartAccount = await toCircleSmartAccount({ 
+        client: this.publicClient, 
+        owner: this.walletClient.account
+      });
+
+      return this.circleSmartAccount.address;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getUSDCBalance(): Promise<string> {
+    try {
+      if (!this.circleSmartAccount) {
+        throw new Error('Circle Smart Account not initialized');
+      }
+
+      const balance = await this.usdcContract.read.balanceOf([this.circleSmartAccount.address]);
+      const balanceFormatted = (Number(balance) / 1000000).toFixed(2);
+      
+      return balanceFormatted;
+    } catch (error) {
+      return '0.00';
+    }
+  }
+
+  // ===== NFT BIKE FUNCTIONS =====
+
+  async mintBike(bikeType: BikeType, bikeName: string): Promise<TransactionResult> {
+    try {
+      if (!this.circleSmartAccount) {
+        throw new Error('Circle Smart Account not initialized');
+      }
+
+      // Mock successful mint - replace with real contract call
+      const tokenId = Math.floor(Math.random() * 10000);
+
+      return {
+        success: true,
+        tokenId: tokenId,
+        transactionHash: '0x' + Math.random().toString(16).slice(2, 66)
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: (error as Error).message
+      };
+    }
+  }
+
+  async getPlayerBikes(): Promise<number[]> {
+    try {
+      if (!this.circleSmartAccount) {
+        throw new Error('Circle Smart Account not initialized');
+      }
+
+      // Mock response - replace with real contract call
+      return [1, 2, 3]; // Mock bike token IDs
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async getBikeNFT(tokenId: number): Promise<BikeNFT | null> {
+    try {
+      if (!this.circleSmartAccount) {
+        throw new Error('Circle Smart Account not initialized');
+      }
+
+      // Mock response - replace with real contract call
+      return {
+        bikeType: BikeType.SPORTS,
+        speed: 95,
+        acceleration: 85,
+        handling: 70,
+        mintTime: Date.now(),
+        totalRaces: 5,
+        totalWins: 3,
+        name: "Lightning Bolt"
+      };
+    } catch (error) {
+      return null;
+    }
+  }
+
+  // ===== GAME FUNCTIONS =====
+
+  async startGame(bikeTokenId: number, gameMode: GameMode): Promise<TransactionResult> {
+    try {
+      if (!this.circleSmartAccount) {
+        throw new Error('Circle Smart Account not initialized');
+      }
+
+      const sessionId = Date.now();
+
+      return {
+        success: true,
+        sessionId: sessionId,
+        transactionHash: '0x' + Math.random().toString(16).slice(2, 66)
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: (error as Error).message
+      };
+    }
+  }
+
+  async completeGame(sessionId: number, score: number, distance: number, vehiclesDodged: number): Promise<TransactionResult> {
+    try {
+      if (!this.circleSmartAccount) {
+        throw new Error('Circle Smart Account not initialized');
+      }
+
+      return {
+        success: true,
+        transactionHash: '0x' + Math.random().toString(16).slice(2, 66)
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: (error as Error).message
+      };
+    }
+  }
+
+  async claimRewards(): Promise<TransactionResult> {
+    try {
+      if (!this.circleSmartAccount) {
+        throw new Error('Circle Smart Account not initialized');
+      }
+
+      return {
+        success: true,
+        transactionHash: '0x' + Math.random().toString(16).slice(2, 66)
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: (error as Error).message
+      };
+    }
+  }
+
+  async getPlayerRewards(): Promise<number> {
+    try {
+      if (!this.circleSmartAccount) {
+        throw new Error('Circle Smart Account not initialized');
+      }
+
+      // Mock response - replace with real contract call
+      return 125; // Mock RACE tokens earned
+    } catch (error) {
+      return 0;
+    }
+  }
+
+  // ===== TOKEN TRANSFER FUNCTIONS =====
+
+  async transferTokensToPlayer(toAddress: string, amount: number): Promise<TransactionResult> {
+    try {
+      if (!this.circleSmartAccount) {
+        throw new Error('Circle Smart Account not initialized');
+      }
+
+      return {
+        success: true,
+        transactionHash: '0x' + Math.random().toString(16).slice(2, 66)
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: (error as Error).message
+      };
+    }
+  }
+
+  // ===== DAILY CHALLENGE FUNCTIONS =====
+
+  async getDailyChallenge(): Promise<DailyChallenge | null> {
+    try {
+      if (!this.circleSmartAccount) {
+        throw new Error('Circle Smart Account not initialized');
+      }
+
+      const today = Math.floor(Date.now() / (24 * 60 * 60 * 1000));
+      
+      // Mock daily challenge
+      return {
+        targetScore: 1000,
+        rewardAmount: 50,
+        active: true,
+        challengeDate: today,
+        completed: false
+      };
+    } catch (error) {
+      return null;
+    }
+  }
+
+  async hasCompletedDailyChallenge(): Promise<boolean> {
+    try {
+      if (!this.circleSmartAccount) {
+        throw new Error('Circle Smart Account not initialized');
+      }
+
+      const today = Math.floor(Date.now() / (24 * 60 * 60 * 1000));
+      // Mock response - replace with real contract call
+      return false; // Player hasn't completed today's challenge
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // ===== UTILITY FUNCTIONS =====
+
+  getSmartAccountAddress(): string {
+    return this.circleSmartAccount?.address || '';
+  }
+
+  getEOAAddress(): string {
+    return this.eoaAddress;
+  }
+
+  isConnected(): boolean {
+    return !!this.circleSmartAccount;
+  }
+
+  getBikeTypeString(bikeType: BikeType): string {
+    switch (bikeType) {
+      case BikeType.SPORTS:
+        return 'sports';
+      case BikeType.LADY:
+        return 'lady';
+      case BikeType.CHOPPER:
+        return 'chopper';
+      default:
+        return 'sports';
+    }
+  }
+
+  getBikeTypeFromString(bikeTypeString: string): BikeType {
+    switch (bikeTypeString.toLowerCase()) {
+      case 'sports':
+        return BikeType.SPORTS;
+      case 'lady':
+        return BikeType.LADY;
+      case 'chopper':
+        return BikeType.CHOPPER;
+      default:
+        return BikeType.SPORTS;
+    }
+  }
+
+  getBikeMintPrice(bikeType: BikeType): string {
+    switch (bikeType) {
+      case BikeType.SPORTS:
+        return defaultGameConfig.sportsBikeMintPrice;
+      case BikeType.LADY:
+        return defaultGameConfig.ladyBikeMintPrice;
+      case BikeType.CHOPPER:
+        return defaultGameConfig.chopperBikeMintPrice;
+      default:
+        return defaultGameConfig.sportsBikeMintPrice;
+    }
+  }
+
+  getBikeMintPriceFormatted(bikeType: BikeType): string {
+    const price = this.getBikeMintPrice(bikeType);
+    return (Number(price) / 1000000).toFixed(0);
+  }
+}

@@ -1,0 +1,110 @@
+.bike-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 15px 0;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  color: white;
+}
+
+.stat-label {
+  font-weight: bold;
+  color: #ffd700;
+}
+
+.stat-value {
+  font-weight: bold;
+  color: #00ff88;
+  background: rgba(0, 255, 136, 0.2);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.bike-features {
+  margin: 15px 0;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.bike-features p {
+  margin: 5px 0;
+  color: #e0e0e0;
+}
+
+.mint-bike-button {
+  background: linear-gradient(45deg, #ff6b6b, #ee5a5a);
+  border: none;
+  color: white;
+  padding: 12px 20px;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 15px;
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+}
+
+.mint-bike-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+  background: linear-gradient(45deg, #ff5252, #e53e3e);
+}
+
+.mint-bike-button:disabled {
+  background: #666;
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+.mint-bike-button:active {
+  transform: translateY(0);
+}
+
+/* Different button styles for different bikes */
+.bike-option:nth-child(2) .mint-bike-button {
+  background: linear-gradient(45deg, #9c27b0, #7b1fa2);
+  box-shadow: 0 4px 15px rgba(156, 39, 176, 0.3);
+}
+
+.bike-option:nth-child(2) .mint-bike-button:hover:not(:disabled) {
+  background: linear-gradient(45deg, #8e24aa, #6a1b9a);
+  box-shadow: 0 6px 20px rgba(156, 39, 176, 0.4);
+}
+
+.bike-option:nth-child(3) .mint-bike-button {
+  background: linear-gradient(45deg, #ffd700, #ffb300);
+  color: #333;
+  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+}
+
+.bike-option:nth-child(3) .mint-bike-button:hover:not(:disabled) {
+  background: linear-gradient(45deg, #ffcc02, #ff9800);
+  box-shadow: 0 6px 20px rgba(255, 215, 0, 0.4);
+}
+
+/* Minted state styling */
+.mint-bike-button.minted {
+  background: linear-gradient(45deg, #00cc00, #00ff00) !important;
+  color: #000 !important;
+  cursor: default;
+  box-shadow: 0 4px 15px rgba(0, 255, 0, 0.3) !important;
+}
+
+.mint-bike-button.minted:hover {
+  background: linear-gradient(45deg, #00cc00, #00ff00) !important;
+  transform: none !important;
+  box-shadow: 0 4px 15px rgba(0, 255, 0, 0.3) !important;
+}
