@@ -27,7 +27,7 @@ function AppContent() {
   };
 
   const handleStartRacing = () => {
-    setShowGame(false);
+    window.location.reload();
   };
 
   if (showGame && selectedBike && circleService) {

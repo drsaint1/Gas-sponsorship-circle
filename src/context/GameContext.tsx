@@ -555,20 +555,10 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   };
 
   useEffect(() => {
-    const handleDynamicWalletConnection = async () => {
-      if (primaryWallet && isEthereumWallet(primaryWallet) && !isConnected) {
-        await connectWallet();
-      }
-    };
-    
-    handleDynamicWalletConnection();
-  }, [primaryWallet, isConnected, connectWallet]);
-
-  useEffect(() => {
     if (primaryWallet && isEthereumWallet(primaryWallet) && !isConnected) {
       connectWallet();
     }
-  }, [primaryWallet]);
+  }, [primaryWallet, isConnected, connectWallet]);
 
   useEffect(() => {
     if (isConnected && circleService) {
