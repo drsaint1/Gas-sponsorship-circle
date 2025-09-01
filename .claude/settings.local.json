@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(npm run dev:*)",
-      "Read(c:\\Users\\USER\\Desktop\\FASTPROJECT\\testcircle\\game-frontend/**)"
+      "Read(c:\\Users\\USER\\Desktop\\FASTPROJECT\\testcircle\\game-frontend/**)",
+      "Read(c:\\Users\\USER\\Desktop\\FASTPROJECT\\testcircle\\game-frontend/**)",
+      "Bash(sed:*)"
     ],
     "deny": [],
     "ask": []

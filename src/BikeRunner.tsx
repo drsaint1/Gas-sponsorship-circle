@@ -1,4 +1,3 @@
-// components/CarGame.tsx - Clean game logic without blockchain integration
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import * as THREE from "three";
 import { useGame } from './context/GameContext';

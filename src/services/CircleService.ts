@@ -1,13 +1,9 @@
-// Circle Modular Wallets Integration Service with NFT Support
 import { createPublicClient, getContract, erc20Abi, formatEther, encodeFunctionData, parseEther } from "viem";
 import { polygonAmoy } from "viem/chains";
 import { toCircleSmartAccount, walletClientToLocalAccount, toModularTransport } from "@circle-fin/modular-wallets-core";
 import { isEthereumWallet } from '@dynamic-labs/ethereum';
 import { createBundlerClient } from "viem/account-abstraction";
 import BikeRacerGameABI from '../abi/BikeRacerGame.json';
-// import RaceTokenABI from '../abi/RaceToken.json';
-
-// Using generated ABIs from compiled contracts
 const gameAbi = BikeRacerGameABI;
 
 const USDC_ABI = [
@@ -89,11 +85,6 @@ interface TransactionResult {
   tokenId?: number;
 }
 
-// Commented out unused permit code
-
-// Commented out unused eip2612Permit function
-
-// Removed unused signPermit function
 
 export class CircleService {
   private publicClient: any;
@@ -118,8 +109,6 @@ export class CircleService {
 
   async initialize(): Promise<void> {
     try {
-      // gameContract removed - using address directly
-
       this.usdcContract = getContract({
         address: this.usdcAddress,
         abi: USDC_ABI,
@@ -130,7 +119,6 @@ export class CircleService {
     }
   }
 
-  // New method for Dynamic wallet integration
   async connectWithDynamicWallet(primaryWallet: any): Promise<string> {
     if (!primaryWallet) {
       throw new Error('No primary wallet provided');
@@ -142,8 +130,6 @@ export class CircleService {
 
     // Get wallet client from Dynamic
     const walletClient = await primaryWallet.getWalletClient();
-    
-    // Create Smart Account using Dynamic's approach
     this.circleSmartAccount = await toCircleSmartAccount({
       client: this.publicClient,
       owner: walletClientToLocalAccount(walletClient), // Dynamic's proper conversion
@@ -205,7 +191,6 @@ export class CircleService {
         throw new Error('Circle Smart Account not initialized');
       }
 
-      console.log('💰 getRaceTokenBalance: Checking RACE token balance for:', this.circleSmartAccount.address);
       
       // Get RACE token balance from the actual token contract
       const balance = await this.publicClient.readContract({
@@ -225,39 +210,30 @@ export class CircleService {
 
       // Convert from wei to RACE tokens (18 decimals)
       const formattedBalance = Number(formatEther(balance as bigint));
-      console.log('💰 getRaceTokenBalance: Raw balance:', balance, 'Formatted:', formattedBalance);
       
       return formattedBalance;
     } catch (error) {
-      console.error('❌ getRaceTokenBalance failed:', error);
       return 0;
     }
   }
 
-  // ===== NFT BIKE FUNCTIONS =====
 
   async mintBike(bikeType: BikeType, bikeName: string): Promise<TransactionResult> {
-    console.log(`🚀 mintBike: Starting mint for bike type ${bikeType} (${bikeName})`);
     
     try {
       if (!this.circleSmartAccount || !this.bundlerClient) {
-        console.log('❌ Missing smart account or bundler client');
         throw new Error('Circle Smart Account or bundler client not initialized');
       }
 
-      console.log('💰 Checking USDC balance and mint price...');
       const mintPrice = this.getBikeMintPrice(bikeType);
       const balance = await this.usdcContract.read.balanceOf([this.circleSmartAccount.address]);
       
-      console.log(`💳 Balance: ${(Number(balance) / 1000000).toFixed(2)} USDC, Price: ${(Number(mintPrice) / 1000000).toFixed(2)} USDC`);
       
       if (BigInt(balance) < BigInt(mintPrice)) {
         throw new Error(`Insufficient USDC balance. You have ${(Number(balance) / 1000000).toFixed(2)} USDC, but need ${(Number(mintPrice) / 1000000).toFixed(2)} USDC. Please fund your account at https://faucet.circle.com`);
       }
 
-      console.log('📝 Preparing transaction calls...');
       // Send transaction with gas sponsorship - approve USDC then mint (Circle pattern + Arbitrum gas requirements)
-      console.log('🚀 Submitting user operation...');
       const hash = await this.bundlerClient.sendUserOperation({
         account: this.circleSmartAccount,
         calls: [
@@ -279,9 +255,7 @@ export class CircleService {
         paymaster: true, // Enable gas sponsorship as per Circle's documentation
       });
 
-      console.log('✅ User operation submitted with hash:', hash);
 
-      console.log('⏳ Waiting for transaction receipt...');
       try {
         const receipt = await Promise.race([
           this.bundlerClient.waitForUserOperationReceipt({ hash }),
@@ -290,7 +264,6 @@ export class CircleService {
           )
         ]) as any;
 
-        console.log('✅ Transaction receipt received:', receipt);
         // Parse the transaction logs to get the token ID
         // For now, we'll return a success without the exact token ID
         return {
@@ -299,7 +272,6 @@ export class CircleService {
           tokenId: 0
         };
       } catch (receiptError) {
-        console.error('⏰ Receipt timeout or error:', receiptError);
         // Don't assume success on timeout - the transaction might have failed
         return {
           success: false,
@@ -459,20 +431,16 @@ export class CircleService {
     }
   }
 
-  // ===== GAME FUNCTIONS =====
 
   async startGame(bikeTokenId: number, gameMode: GameMode): Promise<TransactionResult> {
-    console.log('🎮 startGame: Starting new game session', { bikeTokenId, gameMode });
     
     try {
       if (!this.circleSmartAccount) {
-        console.error('❌ startGame: Smart Account not initialized');
         throw new Error('Circle Smart Account not initialized');
       }
 
       // For practice mode, don't call blockchain - just return a local session ID
       if (gameMode === GameMode.PRACTICE) {
-        console.log('🎮 startGame: Practice mode - no blockchain call needed');
         const localSessionId = Date.now(); // Use timestamp for local session
         
         return {
@@ -487,7 +455,6 @@ export class CircleService {
         throw new Error('Bundler client not initialized');
       }
 
-      console.log('📝 startGame: Preparing blockchain transaction for ranked mode...');
       // Prepare transaction data for startGame contract call
       const txData = encodeFunctionData({
         abi: gameAbi,
@@ -495,7 +462,6 @@ export class CircleService {
         args: [BigInt(bikeTokenId), gameMode]
       });
 
-      console.log('🚀 startGame: Sending user operation...');
       // Send user operation via Circle's bundler
       const hash = await this.bundlerClient.sendUserOperation({
         account: this.circleSmartAccount,
@@ -507,7 +473,6 @@ export class CircleService {
         paymaster: true, // Circle paymaster handles gas
       });
 
-      console.log('✅ startGame: Transaction hash:', hash);
 
       try {
         const receipt = await Promise.race([
@@ -517,7 +482,6 @@ export class CircleService {
           )
         ]) as any;
         
-        console.log('📄 startGame: Receipt received:', receipt);
         
         // Get the session ID from contract
         try {
@@ -529,7 +493,6 @@ export class CircleService {
           });
           
           const sessionId = Number(nextSessionId) - 1;
-          console.log('📋 startGame: Extracted session ID from contract:', sessionId);
           
           return {
             success: true,
@@ -537,7 +500,6 @@ export class CircleService {
             sessionId: sessionId
           };
         } catch (sessionIdError) {
-          console.error('❌ Failed to get session ID, using timestamp fallback:', sessionIdError);
           const sessionId = Date.now();
           
           return {
@@ -557,7 +519,6 @@ export class CircleService {
         };
       }
     } catch (error) {
-      console.error('❌ startGame failed:', error);
       return {
         success: false,
         error: (error as Error).message
@@ -566,19 +527,15 @@ export class CircleService {
   }
 
   async completeGame(sessionId: number, score: number, distance: number, vehiclesDodged: number, gameMode: GameMode = GameMode.PRACTICE, bikeTokenId: number = 0): Promise<TransactionResult> {
-    console.log('🎮 completeGame: Starting game completion', { sessionId, score, distance, vehiclesDodged, gameMode, bikeTokenId });
     
     try {
       if (!this.circleSmartAccount || !this.bundlerClient) {
-        console.error('❌ completeGame: Smart Account not initialized');
         throw new Error('Circle Smart Account not initialized');
       }
 
       // Use the working session approach with optimized batching
-      console.log('🎮 completeGame: Using optimized session approach...');
       return await this.completeGameWithSession(sessionId, score, distance, vehiclesDodged, bikeTokenId);
     } catch (error) {
-      console.error('❌ completeGame failed:', error);
       return {
         success: false,
         error: (error as Error).message
@@ -593,7 +550,6 @@ export class CircleService {
       const bikes = await this.getPlayerBikes();
       const actualBikeTokenId = bikeTokenId > 0 ? bikeTokenId : (bikes.length > 0 ? bikes[0] : 1);
       
-      console.log('🎮 completeGameWithSession: Using simplified session approach...');
       
       // Try to complete an existing session first, then claim
       const hash = await this.bundlerClient!.sendUserOperation({
@@ -713,12 +669,9 @@ export class CircleService {
   async getPlayerRewards(): Promise<number> {
     try {
       if (!this.circleSmartAccount || !this.publicClient) {
-        console.error('❌ getPlayerRewards: Smart Account not initialized');
         throw new Error('Circle Smart Account not initialized');
       }
 
-      console.log('🔍 getPlayerRewards: Checking rewards for address:', this.circleSmartAccount.address);
-      console.log('🔍 getPlayerRewards: Contract address:', defaultGameConfig.gameContract);
 
       // Get player's earned rewards from contract using publicClient
       const rewards = await this.publicClient.readContract({
@@ -728,20 +681,16 @@ export class CircleService {
         args: [this.circleSmartAccount.address]
       });
 
-      console.log('📊 getPlayerRewards: Raw rewards from contract:', rewards);
       
       // Convert from wei to RACE tokens (18 decimals)
       const formattedRewards = Number(formatEther(rewards as bigint));
-      console.log('💰 getPlayerRewards: Formatted rewards:', formattedRewards);
       
       return formattedRewards;
     } catch (error) {
-      console.error('❌ getPlayerRewards failed:', error);
       return 0;
     }
   }
 
-  // ===== TOURNAMENT FUNCTIONS =====
   
   async enterTournament(_tournamentId: number): Promise<TransactionResult> {
     try {
@@ -915,30 +864,24 @@ export class CircleService {
     const maxRetries = 3;
     let retryCount = 0;
     
-    console.log('🔍 getOwnedBikeTypesReliable: Starting...');
     
     while (retryCount < maxRetries) {
       try {
-        console.log(`🔄 Attempt ${retryCount + 1}/${maxRetries}`);
         
         if (!this.circleSmartAccount || !this.publicClient) {
-          console.log('❌ No smart account or public client');
           return new Set();
         }
 
         const tokenIds = await this.getPlayerBikes();
-        console.log('🎫 Token IDs retrieved:', tokenIds);
         const ownedTypes = new Set<BikeType>();
         
         // Wait a bit for the blockchain to sync after mint
         if (retryCount > 0) {
-          console.log(`⏰ Waiting 2 seconds for blockchain sync (retry ${retryCount})`);
           await new Promise(resolve => setTimeout(resolve, 2000));
         }
         
         for (const tokenId of tokenIds) {
           try {
-            console.log(`🔍 Checking bike details for token ${tokenId}`);
             const bikeDetails = await this.publicClient.readContract({
               address: defaultGameConfig.gameContract,
               abi: gameAbi,
@@ -948,26 +891,20 @@ export class CircleService {
             
             const bike = bikeDetails as any;
             const bikeType = Number(bike.bikeType) as BikeType;
-            console.log(`🏍️ Token ${tokenId} has bike type: ${bikeType}`);
             ownedTypes.add(bikeType);
           } catch (bikeError) {
-            console.error(`❌ Failed to get details for token ${tokenId}:`, bikeError);
             // Continue checking other bikes
             continue;
           }
         }
         
-        console.log('✅ Final owned bike types:', Array.from(ownedTypes));
         return ownedTypes;
       } catch (error) {
-        console.error(`❌ Attempt ${retryCount + 1} failed:`, error);
         retryCount++;
         if (retryCount >= maxRetries) {
-          console.log('🚫 Max retries exceeded, returning empty set');
           return new Set();
         }
         // Wait before retry
-        console.log('⏰ Waiting 1 second before retry...');
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }

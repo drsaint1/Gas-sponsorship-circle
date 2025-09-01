@@ -3,8 +3,9 @@ import BikeRunner from './BikeRunner';
 import { GameProvider, useGame } from './context/GameContext';
 import WalletStatus from './components/WalletStatus';
 import GameMenu from './components/GameMenu';
-import { DynamicContextProvider, DynamicWidget } from '@dynamic-labs/sdk-react-core';
+import { DynamicContextProvider, DynamicWidget, useDynamicContext } from '@dynamic-labs/sdk-react-core';
 import { EthereumWalletConnectors } from '@dynamic-labs/ethereum';
+import { isEthereumWallet } from '@dynamic-labs/ethereum';
 import { polygonAmoy } from 'viem/chains';
 import './App.css'
 
@@ -12,13 +13,20 @@ const environmentId = import.meta.env.VITE_DYNAMIC_ENV_ID as string;
 
 function AppContent() {
   const [showGame, setShowGame] = useState(false);
-  const { isConnected, selectedBike, circleService } = useGame();
+  const { isConnected, selectedBike, circleService, loading } = useGame();
+  const { primaryWallet } = useDynamicContext();
+
+  const hasConnectedWallet = primaryWallet && isEthereumWallet(primaryWallet);
 
   const handleBikeSelect = (_bikeType: "sports" | "lady" | "chopper") => {
     setShowGame(true);
   };
 
   const handleBackToMenu = () => {
+    setShowGame(false);
+  };
+
+  const handleStartRacing = () => {
     setShowGame(false);
   };
 
@@ -140,20 +148,107 @@ function AppContent() {
               </div>
             </div>
             
-            <p style={{
-              color: '#667eea',
-              fontSize: '14px',
-              fontWeight: '500',
-              margin: '0'
-            }}>
-              👆 Click the wallet button in the top-right corner to connect
-            </p>
+            {loading ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '12px',
+                color: '#667eea',
+                fontSize: '16px',
+                fontWeight: '500'
+              }}>
+                <div style={{
+                  width: '20px',
+                  height: '20px',
+                  border: '2px solid rgba(102, 126, 234, 0.3)',
+                  borderTop: '2px solid #667eea',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }} />
+                Connecting wallet...
+              </div>
+            ) : (
+              <p style={{
+                color: '#667eea',
+                fontSize: '14px',
+                fontWeight: '500',
+                margin: '0'
+              }}>
+                👆 Click the wallet button in the top-right corner to connect
+              </p>
+            )}
+
+            {hasConnectedWallet && !loading && (
+              <div style={{ marginTop: '32px' }}>
+                <div style={{
+                  background: 'rgba(255, 215, 0, 0.1)',
+                  border: '1px solid rgba(255, 215, 0, 0.3)',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  marginBottom: '20px'
+                }}>
+                  <p style={{
+                    color: '#ffd700',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    margin: '0 0 8px 0'
+                  }}>
+                    ✅ Wallet Connected!
+                  </p>
+                  <p style={{
+                    color: '#667eea',
+                    fontSize: '14px',
+                    margin: '0',
+                    opacity: 0.8
+                  }}>
+                    If the page doesn't redirect automatically, click the button below:
+                  </p>
+                </div>
+                
+                <button
+                  onClick={handleStartRacing}
+                  style={{
+                    background: 'linear-gradient(135deg, #ffd700 0%, #ffb347 100%)',
+                    border: 'none',
+                    borderRadius: '16px',
+                    padding: '16px 32px',
+                    fontSize: '20px',
+                    fontWeight: '700',
+                    color: '#1a202c',
+                    cursor: 'pointer',
+                    boxShadow: '0 8px 32px rgba(255, 215, 0, 0.4)',
+                    transform: 'translateY(0)',
+                    transition: 'all 0.3s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '12px',
+                    margin: '0 auto',
+                    minWidth: '240px'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 12px 40px rgba(255, 215, 0, 0.5)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 8px 32px rgba(255, 215, 0, 0.4)';
+                  }}
+                >
+                  <span style={{ fontSize: '24px' }}>⭐</span>
+                  Start Racing
+                  <span style={{ fontSize: '24px' }}>🏁</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
     );
   }
 
+  // Show game menu for connected users
   return (
     <div className="app-container">
       <WalletStatus />

@@ -1,4 +1,3 @@
-// Enhanced Game state management with NFT bikes and Dynamic wallet integration
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { CircleService } from '../services/CircleService';
 import type { BikeNFT, BikeType, DailyChallenge } from '../services/CircleService';
@@ -139,21 +138,16 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   const [raceTokenBalance, setRaceTokenBalance] = useState(0);
 
   const connectWallet = useCallback(async () => {
-    console.log('🚀 connectWallet called');
-    
     if (!primaryWallet) {
-      console.log('❌ No primary wallet available');
       setError('No wallet connected. Please connect your wallet using the Dynamic widget above.');
       return;
     }
 
     if (!isEthereumWallet(primaryWallet)) {
-      console.log('❌ Not an Ethereum wallet');
       setError('Please connect an Ethereum-compatible wallet.');
       return;
     }
 
-    console.log('⏳ Starting wallet connection process...');
     setLoading(true);
     setError(null);
     
@@ -177,8 +171,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
       
       setIsConnected(true);
       await loadDailyChallenge();
-      await loadGameData(); // Load after circle service is set
-      
+      await loadGameData();
       
       setLoading(false);
     } catch (err) {
@@ -235,36 +228,25 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     }
   };
 
-  // ===== NFT BIKE FUNCTIONS =====
-  
   const loadPlayerBikes = useCallback(async () => {
     if (!isConnected || !circleService) {
-      console.log('❌ loadPlayerBikes: Not connected or no service');
       return;
     }
     
-    console.log('🔄 Loading player bikes...');
-    
     try {
-      // Use the more reliable method to get owned bike types
       const ownedBikeTypes = await circleService.getOwnedBikeTypesReliable();
-      console.log('📋 Owned bike types from blockchain:', Array.from(ownedBikeTypes));
       setMintedBikeTypes(ownedBikeTypes);
       
-      // Also get the full bike details for game selection
       const bikeTokenIds = await circleService.getPlayerBikes();
-      console.log('🎫 Token IDs found:', bikeTokenIds);
       const bikes: OwnedBike[] = [];
       
       for (const tokenId of bikeTokenIds) {
         const bikeNFT = await circleService.getBikeNFT(tokenId);
         if (bikeNFT) {
-          console.log(`🏍️ Bike ${tokenId}:`, bikeNFT);
           bikes.push({ ...bikeNFT, tokenId });
         }
       }
       
-      console.log('✅ Total bikes loaded:', bikes.length);
       setOwnedBikes(bikes);
       setHasAnyBikes(bikes.length > 0);
       
@@ -272,13 +254,11 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
         setSelectedBike(bikes[0]);
       }
     } catch (err) {
-      console.error('❌ Error loading player bikes:', err);
       setOwnedBikes([]);
       setHasAnyBikes(false);
       setMintedBikeTypes(new Set());
     }
   }, [isConnected, circleService]);
-  
 
   const mintBike = async (bikeType: BikeType, bikeName: string) => {
     if (!isConnected || !circleService) {
@@ -286,47 +266,31 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
       return;
     }
     
-    console.log(`🚀 Starting mint for bike type ${bikeType} (${bikeName})`);
     setLoading(true);
     setError(null);
     
     try {
       const result = await circleService.mintBike(bikeType, bikeName);
-      console.log('💰 Mint result:', result);
       
       if (result.success) {
-        console.log('✅ Mint successful, updating UI immediately');
-        // Immediately show as minted in UI
         setMintedBikeTypes(prev => new Set([...prev, bikeType]));
         
-        // Wait for blockchain to sync, then verify on-chain
-        console.log('⏰ Waiting 2 seconds before verification...');
         setTimeout(async () => {
           try {
-            console.log(`🔍 Verifying bike type ${bikeType} ownership on-chain...`);
-            // Verify the bike is actually owned on-chain
             const isActuallyOwned = await circleService.checkBikeTypeOwnership(bikeType);
-            console.log(`🎯 Verification result for bike type ${bikeType}:`, isActuallyOwned);
             
             if (isActuallyOwned) {
-              console.log('✅ Confirmed on-chain, refreshing data...');
-              // Confirmed on-chain, refresh all data
               await loadPlayerBikes();
               const newBalance = await circleService.getUSDCBalance();
               setUsdcBalance(newBalance);
             } else {
-              console.log('⏳ Not found on-chain yet, trying again in 5 seconds...');
-              // Not found on-chain yet, try again after longer delay
               setTimeout(async () => {
-                console.log('🔄 Second verification attempt...');
                 await loadPlayerBikes();
                 const newBalance = await circleService.getUSDCBalance();
                 setUsdcBalance(newBalance);
               }, 5000);
             }
           } catch (verifyError) {
-            console.error('❌ Verification failed, doing fallback refresh:', verifyError);
-            // Fallback - just refresh data anyway
             await loadPlayerBikes();
             const newBalance = await circleService.getUSDCBalance();
             setUsdcBalance(newBalance);
@@ -334,22 +298,16 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
         }, 2000);
         
       } else {
-        // Handle timeout case specially
         if (result.error?.includes('timeout')) {
-          console.log('⏰ Transaction timed out, but may still be processing...');
-          // Don't update UI immediately for timeout case
-          // Set a longer retry for verification
           setTimeout(async () => {
-            console.log('🔄 Checking if timed-out transaction completed...');
             await loadPlayerBikes();
             const newBalance = await circleService.getUSDCBalance();
             setUsdcBalance(newBalance);
-          }, 10000); // Wait 10 seconds for timeouts
+          }, 10000);
         }
         throw new Error(result.error || 'Failed to mint bike');
       }
     } catch (err) {
-      console.error('❌ Mint failed:', err);
       setError((err as Error).message);
     } finally {
       setLoading(false);
@@ -359,9 +317,6 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   const selectBike = (bike: OwnedBike) => {
     setSelectedBike(bike);
   };
-  
-  // ===== GAME FUNCTIONS =====
-  
   const startNewGame = async (gameMode: GameMode) => {
     if (!isConnected || !circleService) {
       setError('Wallet not connected');
@@ -433,18 +388,14 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
         setPlayerRewards('0');
         setRaceTokenBalance(0);
         
-        // Refresh wallet RACE token balance after a delay
         setTimeout(async () => {
           try {
             const newRaceBalance = await circleService.getRaceTokenBalance();
             setWalletRaceTokenBalance(newRaceBalance);
-            console.log('💰 Updated wallet RACE balance:', newRaceBalance);
           } catch (error) {
-            console.error('Failed to refresh RACE token balance:', error);
+            // Handle error silently
           }
-        }, 3000); // Wait 3 seconds for blockchain processing
-        
-        console.log('🎉 Game completed successfully! Rewards were auto-claimed to your wallet.');
+        }, 3000);
       } else {
         throw new Error(result.error || 'Failed to complete game');
       }
@@ -523,8 +474,6 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     }
   };
 
-  // ===== TOKEN TRANSFER FUNCTIONS =====
-  
   const transferTokensToPlayer = async (toAddress: string, amount: number) => {
     if (!isConnected || !circleService) {
       setError('Wallet not connected');
@@ -560,9 +509,6 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
       setLoading(false);
     }
   };
-  
-  // ===== DAILY CHALLENGE FUNCTIONS =====
-  
   const loadDailyChallenge = async () => {
     if (!isConnected || !circleService) return;
     
@@ -610,96 +556,58 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const handleDynamicWalletConnection = async () => {
-      console.log('🔌 Dynamic wallet connection check:', { 
-        hasPrimaryWallet: !!primaryWallet, 
-        isEthereum: primaryWallet ? isEthereumWallet(primaryWallet) : false,
-        isConnected 
-      });
-      
       if (primaryWallet && isEthereumWallet(primaryWallet) && !isConnected) {
-        console.log('🔗 Auto-connecting to previously connected wallet...');
         await connectWallet();
-      } else if (!primaryWallet) {
-        console.log('❌ No primary wallet found on page load');
-        // Wait a bit for Dynamic to initialize, then check again
-        setTimeout(async () => {
-          console.log('🔄 Rechecking for wallet after 2 seconds...');
-          if (primaryWallet && isEthereumWallet(primaryWallet) && !isConnected) {
-            console.log('🔗 Delayed auto-connect attempt...');
-            await connectWallet();
-          }
-        }, 2000);
-      } else if (isConnected) {
-        console.log('✅ Already connected');
       }
     };
     
     handleDynamicWalletConnection();
   }, [primaryWallet, isConnected, connectWallet]);
 
-  // Separate effect to load player bikes when connection is established
+  useEffect(() => {
+    if (primaryWallet && isEthereumWallet(primaryWallet) && !isConnected) {
+      connectWallet();
+    }
+  }, [primaryWallet]);
+
   useEffect(() => {
     if (isConnected && circleService) {
-      console.log('🔄 Connection established, loading player bikes...');
       loadPlayerBikes();
     }
   }, [isConnected, circleService, loadPlayerBikes]);
 
   const value: GameContextType = {
-    // Circle service
     circleService,
     isConnected,
     walletAddress,
     smartAccountAddress,
     usdcBalance,
     walletRaceTokenBalance,
-    
-    // NFT Bike System
     ownedBikes,
     selectedBike,
     hasAnyBikes,
     mintedBikeTypes,
-    
-    // Game state
     currentSessionId,
     currentGameMode,
     gameStarted,
     gameCompleted,
-    
-    // Daily Challenges
     dailyChallenge,
     hasDailyChallenge,
-    
-    // UI state
     loading,
     error,
-    
-    // Game data
     playerSessions,
     activeTournaments,
     playerRewards,
     raceTokenBalance,
-    
-    // Actions
     connectWallet,
     disconnectWallet,
-    
-    // NFT Actions
     mintBike,
     selectBike,
-    
-    // Game Actions
     startNewGame,
     completeCurrentGame,
-    
-    // Tournament Actions
     joinTournament,
-    
-    // Token Actions
     claimPlayerRewards,
     transferTokensToPlayer,
-    
-    // Utility Actions
     refreshData,
     loadDailyChallenge,
     clearError,

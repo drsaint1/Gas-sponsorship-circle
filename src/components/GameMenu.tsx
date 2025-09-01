@@ -1,4 +1,3 @@
-// components/GameMenu.tsx - Main game menu with Circle integration
 import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
 import { BikeType, GameMode } from '../services/CircleService';
@@ -14,12 +13,6 @@ const GameMenu: React.FC<GameMenuProps> = ({ onBikeSelect }) => {
   const [mintingBikeType, setMintingBikeType] = useState<BikeType | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const { startNewGame, loading, error, clearError, usdcBalance, mintBike, circleService, mintedBikeTypes, ownedBikes, selectedBike, selectBike } = useGame();
-
-  // const formatUSDC = (balance: string) => {
-  //   const balanceNum = parseFloat(balance);
-  //   return balanceNum.toFixed(2);
-  // };
-
 
   const hasEnoughForMint = (bikeType: BikeType) => {
     if (!circleService) return false;

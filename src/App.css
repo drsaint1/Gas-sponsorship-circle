@@ -1140,6 +1140,12 @@ body {
   cursor: not-allowed;
 }
 
+/* Animations */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 /* Responsive NFT Shop */
 @media (max-width: 768px) {
   .templates-grid {
