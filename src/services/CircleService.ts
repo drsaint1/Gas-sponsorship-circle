@@ -526,7 +526,7 @@ export class CircleService {
     }
   }
 
-  async completeGame(sessionId: number, score: number, distance: number, vehiclesDodged: number, gameMode: GameMode = GameMode.PRACTICE, bikeTokenId: number = 0): Promise<TransactionResult> {
+  async completeGame(sessionId: number, score: number, distance: number, vehiclesDodged: number, _gameMode: GameMode = GameMode.PRACTICE, bikeTokenId: number = 0): Promise<TransactionResult> {
     
     try {
       if (!this.circleSmartAccount || !this.bundlerClient) {
