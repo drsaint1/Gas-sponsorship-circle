@@ -33,7 +33,7 @@ interface BikeGameProps {
 }
 
 const BikeRunner: React.FC<BikeGameProps> = ({ bikeType, onBackToMenu }) => {
-  const { completeCurrentGame, playerRewards, raceTokenBalance, selectedBike, walletRaceTokenBalance, loading } = useGame();
+  const { completeCurrentGame, selectedBike, walletRaceTokenBalance } = useGame();
   // Three.js refs
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | undefined>(undefined);

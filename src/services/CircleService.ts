@@ -100,7 +100,6 @@ export class CircleService {
   private bundlerClient: any;
   private usdcContract: any;
   private circleSmartAccount: any;
-  private isInitialized = false;
   private eoaAddress: string = '';
   private gameContractAddress = defaultGameConfig.gameContract;
   private usdcAddress = defaultGameConfig.usdcContract;
@@ -126,8 +125,6 @@ export class CircleService {
         abi: USDC_ABI,
         client: this.publicClient
       });
-      
-      this.isInitialized = true;
     } catch (error) {
       throw error;
     }
@@ -590,7 +587,7 @@ export class CircleService {
   }
   
   // Optimized session approach that works reliably
-  private async completeGameWithSession(sessionId: number, score: number, distance: number, vehiclesDodged: number, bikeTokenId: number): Promise<TransactionResult> {
+  private async completeGameWithSession(_sessionId: number, score: number, distance: number, vehiclesDodged: number, bikeTokenId: number): Promise<TransactionResult> {
     try {
       // Get a bike to use
       const bikes = await this.getPlayerBikes();

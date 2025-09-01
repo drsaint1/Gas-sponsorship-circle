@@ -14,7 +14,7 @@ function AppContent() {
   const [showGame, setShowGame] = useState(false);
   const { isConnected, selectedBike, circleService } = useGame();
 
-  const handleBikeSelect = (bikeType: "sports" | "lady" | "chopper") => {
+  const handleBikeSelect = (_bikeType: "sports" | "lady" | "chopper") => {
     setShowGame(true);
   };
 
@@ -23,7 +23,7 @@ function AppContent() {
   };
 
   if (showGame && selectedBike && circleService) {
-    const bikeTypeString = circleService.getBikeTypeString(selectedBike.bikeType);
+    const bikeTypeString = circleService.getBikeTypeString(selectedBike.bikeType) as "sports" | "lady" | "chopper";
     return <BikeRunner bikeType={bikeTypeString} onBackToMenu={handleBackToMenu} />;
   }
 
