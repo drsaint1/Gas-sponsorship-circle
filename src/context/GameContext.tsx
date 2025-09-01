@@ -131,6 +131,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
   
   const [playerSessions, setPlayerSessions] = useState<GameSession[]>([]);
   const [activeTournaments, setActiveTournaments] = useState<Tournament[]>([]);
@@ -138,6 +139,11 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   const [raceTokenBalance, setRaceTokenBalance] = useState(0);
 
   const connectWallet = useCallback(async () => {
+    // Prevent multiple simultaneous connection attempts
+    if (isConnecting) {
+      return;
+    }
+    
     if (!primaryWallet) {
       setError('No wallet connected. Please connect your wallet using the Dynamic widget above.');
       return;
@@ -148,6 +154,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
       return;
     }
 
+    setIsConnecting(true);
     setLoading(true);
     setError(null);
     
@@ -174,11 +181,13 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
       await loadGameData();
       
       setLoading(false);
+      setIsConnecting(false);
     } catch (err) {
       setError((err as Error).message);
       setLoading(false);
+      setIsConnecting(false);
     }
-  }, [primaryWallet]);
+  }, [primaryWallet, isConnecting]);
 
   const disconnectWallet = () => {
     setIsConnected(false);
@@ -555,10 +564,10 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   };
 
   useEffect(() => {
-    if (primaryWallet && isEthereumWallet(primaryWallet) && !isConnected) {
+    if (primaryWallet && isEthereumWallet(primaryWallet) && !isConnected && !isConnecting) {
       connectWallet();
     }
-  }, [primaryWallet, isConnected, connectWallet]);
+  }, [primaryWallet, isConnected, isConnecting, connectWallet]);
 
   useEffect(() => {
     if (isConnected && circleService) {
