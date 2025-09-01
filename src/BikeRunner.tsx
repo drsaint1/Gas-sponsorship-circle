@@ -64,6 +64,8 @@ const BikeRunner: React.FC<BikeGameProps> = ({ bikeType, onBackToMenu }) => {
   );
   const [invisibilityActive, setInvisibilityActive] = useState(false);
   const [invisibilityCountdown, setInvisibilityCountdown] = useState(0);
+  const [walletProcessing, setWalletProcessing] = useState(false);
+  const [walletLoadingMessage, setWalletLoadingMessage] = useState("");
 
   // Use ref for gameRunning in animate to avoid stale state
   const gameRunningRef = useRef(false);
@@ -891,15 +893,37 @@ const BikeRunner: React.FC<BikeGameProps> = ({ bikeType, onBackToMenu }) => {
 
     // Complete game on blockchain (Circle integration)
     try {
+      // Show initial processing message
+      setWalletProcessing(true);
+      setWalletLoadingMessage("Calculating your rewards...");
+      
+      // Brief delay to show calculation
+      await new Promise(resolve => setTimeout(resolve, 800));
+      setWalletLoadingMessage("Preparing token claim transaction...");
+      
+      // Another delay for preparation
+      await new Promise(resolve => setTimeout(resolve, 600));
+      setWalletLoadingMessage("Approve token claim in your wallet");
+      
+      // Call the actual blockchain transaction
       await completeCurrentGame(
         gameStatsRef.current.finalScore,
         gameStatsRef.current.distance,
         gameStatsRef.current.vehiclesDodged
       );
+      
+      // Success - add small delay to show completion
+      setWalletLoadingMessage("✅ Transaction confirmed! Tokens claimed successfully.");
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      
+      setWalletProcessing(false);
+      setWalletLoadingMessage("");
       showPopup(`🎁 ${totalRewards} RACE tokens earned!`);
       setShowTokenAnimation(true);
       setTimeout(() => setShowTokenAnimation(false), 3000);
     } catch (error) {
+      setWalletProcessing(false);
+      setWalletLoadingMessage("");
       showPopup("⚠️ Failed to save to blockchain");
     }
 
@@ -1684,6 +1708,11 @@ const BikeRunner: React.FC<BikeGameProps> = ({ bikeType, onBackToMenu }) => {
             transform: scale(1.02);
           }
         }
+        
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
       `}</style>
       <div
         style={{
@@ -1932,8 +1961,76 @@ const BikeRunner: React.FC<BikeGameProps> = ({ bikeType, onBackToMenu }) => {
         🗝️ Golden keys = Invisibility power-up
       </div>
 
+      {/* Wallet Processing Overlay */}
+      {walletProcessing && (
+        <div
+          style={{
+            position: "absolute",
+            top: "0",
+            left: "0",
+            right: "0",
+            bottom: "0",
+            zIndex: 300,
+            background: "linear-gradient(135deg, rgba(0,0,0,0.95) 0%, rgba(20,20,40,0.98) 100%)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            backdropFilter: "blur(10px)"
+          }}
+        >
+          <div style={{
+            background: "linear-gradient(135deg, rgba(255,215,0,0.1), rgba(255,165,0,0.05))",
+            border: "2px solid rgba(255,215,0,0.3)",
+            borderRadius: "24px",
+            padding: "40px",
+            textAlign: "center",
+            maxWidth: "400px",
+            width: "90%",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.3)"
+          }}>
+            <div style={{
+              width: "80px",
+              height: "80px",
+              border: "4px solid rgba(255,215,0,0.3)",
+              borderTop: "4px solid #ffd700",
+              borderRadius: "50%",
+              margin: "0 auto 24px",
+              animation: "spin 1s linear infinite"
+            }} />
+            
+            <div style={{
+              color: "#ffd700",
+              fontSize: "24px",
+              fontWeight: "bold",
+              marginBottom: "16px"
+            }}>
+              💰 Processing Rewards
+            </div>
+            
+            <div style={{
+              color: "#ffffff",
+              fontSize: "18px",
+              marginBottom: "8px",
+              opacity: 0.9
+            }}>
+              {walletLoadingMessage}
+            </div>
+            
+            <div style={{
+              color: "#ffffff",
+              fontSize: "14px",
+              opacity: 0.7,
+              lineHeight: "1.5"
+            }}>
+              Please wait while we process your token claim...
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Game Over Screen - Responsive Stats Panel */}
-      {gameOver && (
+      {gameOver && !walletProcessing && (
         <div
           style={{
             position: "absolute",
