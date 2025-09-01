@@ -38,6 +38,7 @@ interface GameContextType {
   walletAddress: string;
   smartAccountAddress: string;
   usdcBalance: string;
+  walletRaceTokenBalance: number;
   
   // NFT Bike System
   ownedBikes: OwnedBike[];
@@ -111,6 +112,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   const [walletAddress, setWalletAddress] = useState(''); // EOA wallet
   const [smartAccountAddress, setSmartAccountAddress] = useState(''); // Smart Account
   const [usdcBalance, setUsdcBalance] = useState('0');
+  const [walletRaceTokenBalance, setWalletRaceTokenBalance] = useState(0);
   
   // NFT Bike State
   const [ownedBikes, setOwnedBikes] = useState<OwnedBike[]>([]);
@@ -168,6 +170,10 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
       
       const balance = await service.getUSDCBalance();
       setUsdcBalance(balance);
+      
+      // Also load RACE token balance
+      const raceBalance = await service.getRaceTokenBalance();
+      setWalletRaceTokenBalance(raceBalance);
       
       setIsConnected(true);
       await loadDailyChallenge();
@@ -404,22 +410,41 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     setError(null);
     
     try {
-      const result = await circleService.completeGame(currentSessionId, score, distance, vehiclesDodged);
+      // Pass game mode and bike info for better processing
+      const bikeTokenId = selectedBike?.tokenId || 0;
+      const gameMode = currentGameMode || GameMode.PRACTICE;
+      
+      const result = await circleService.completeGame(
+        currentSessionId, 
+        score, 
+        distance, 
+        vehiclesDodged,
+        gameMode,
+        bikeTokenId
+      );
       
       if (result.success) {
         setGameCompleted(true);
         setGameStarted(false);
         setCurrentGameMode(null);
+        setCurrentSessionId(null); // Clear session to prevent reuse
         
-        // Don't auto-claim rewards - let player claim manually
-        // Refresh rewards from blockchain to get updated balance
-        try {
-          const updatedRewards = await circleService.getPlayerRewards();
-          setPlayerRewards(updatedRewards.toString());
-          setRaceTokenBalance(updatedRewards);
-        } catch (rewardError) {
-          console.error('Failed to refresh rewards:', rewardError);
-        }
+        // Rewards are auto-claimed in the transaction, so clear local state
+        setPlayerRewards('0');
+        setRaceTokenBalance(0);
+        
+        // Refresh wallet RACE token balance after a delay
+        setTimeout(async () => {
+          try {
+            const newRaceBalance = await circleService.getRaceTokenBalance();
+            setWalletRaceTokenBalance(newRaceBalance);
+            console.log('💰 Updated wallet RACE balance:', newRaceBalance);
+          } catch (error) {
+            console.error('Failed to refresh RACE token balance:', error);
+          }
+        }, 3000); // Wait 3 seconds for blockchain processing
+        
+        console.log('🎉 Game completed successfully! Rewards were auto-claimed to your wallet.');
       } else {
         throw new Error(result.error || 'Failed to complete game');
       }
@@ -565,6 +590,10 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
       setPlayerRewards(rewards.toString());
       setRaceTokenBalance(rewards);
       
+      // Also refresh wallet RACE token balance
+      const walletRaceBalance = await circleService.getRaceTokenBalance();
+      setWalletRaceTokenBalance(walletRaceBalance);
+      
       await loadPlayerBikes();
       await loadDailyChallenge();
     } catch (err) {
@@ -623,6 +652,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     walletAddress,
     smartAccountAddress,
     usdcBalance,
+    walletRaceTokenBalance,
     
     // NFT Bike System
     ownedBikes,

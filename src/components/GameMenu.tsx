@@ -13,7 +13,7 @@ const GameMenu: React.FC<GameMenuProps> = ({ onBikeSelect }) => {
   const [activeTab, setActiveTab] = useState<'vehicles' | 'tournaments'>('vehicles');
   const [mintingBikeType, setMintingBikeType] = useState<BikeType | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const { startNewGame, loading, error, clearError, usdcBalance, mintBike, circleService, mintedBikeTypes } = useGame();
+  const { startNewGame, loading, error, clearError, usdcBalance, mintBike, circleService, mintedBikeTypes, ownedBikes, selectedBike, selectBike } = useGame();
 
   // const formatUSDC = (balance: string) => {
   //   const balanceNum = parseFloat(balance);
@@ -172,82 +172,232 @@ const GameMenu: React.FC<GameMenuProps> = ({ onBikeSelect }) => {
         </button>
       </div>
 
-      {/* Start Racing Section */}
-      {mintedBikeTypes.size > 0 && (
+      {/* Bike Selection Section - Show different content based on bike ownership */}
+      {ownedBikes.length > 0 ? (
         <div style={{
           marginBottom: '40px',
-          padding: '24px',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          borderRadius: '16px',
-          textAlign: 'center',
-          color: 'white'
+          padding: '32px',
+          background: 'linear-gradient(135deg, #1a365d 0%, #2d3748 50%, #1a202c 100%)',
+          borderRadius: '20px',
+          color: 'white',
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3), 0 0 20px rgba(102, 126, 234, 0.2)',
+          border: '2px solid rgba(255, 255, 255, 0.1)'
+        }}>
+          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+            <h3 style={{ 
+              fontSize: '28px',
+              fontWeight: '700',
+              marginBottom: '12px',
+              margin: '0 0 12px 0',
+              textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)',
+              background: 'linear-gradient(45deg, #ffd700, #ffed4a)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>
+              🏍️ SELECT YOUR RACING BIKE
+            </h3>
+            <p style={{ 
+              opacity: 0.95,
+              fontSize: '16px',
+              margin: '0',
+              fontWeight: '500',
+              textShadow: '0 1px 3px rgba(0, 0, 0, 0.3)'
+            }}>
+              Choose which bike to race with. Each bike has unique properties that affect your performance!
+            </p>
+          </div>
+
+          {/* Bike Selection Grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '16px',
+            marginBottom: '24px'
+          }}>
+            {ownedBikes.map((bike) => {
+              const isSelected = selectedBike?.tokenId === bike.tokenId;
+              const bikeEmoji = bike.bikeType === BikeType.SPORTS ? '🏍️' : 
+                               bike.bikeType === BikeType.LADY ? '🛵' : '🏍️';
+              const bikeTypeName = bike.bikeType === BikeType.SPORTS ? 'Sports' : 
+                                  bike.bikeType === BikeType.LADY ? "Lady's" : 'Chopper';
+              
+              return (
+                <div
+                  key={bike.tokenId}
+                  onClick={() => selectBike(bike)}
+                  style={{
+                    padding: '20px',
+                    borderRadius: '16px',
+                    background: isSelected 
+                      ? 'linear-gradient(135deg, #ffd700 0%, #ff8c00 100%)' 
+                      : 'rgba(255, 255, 255, 0.15)',
+                    border: isSelected 
+                      ? '3px solid #ffd700' 
+                      : '2px solid rgba(255, 255, 255, 0.3)',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    textAlign: 'center',
+                    boxShadow: isSelected 
+                      ? '0 10px 30px rgba(255, 215, 0, 0.4), 0 0 20px rgba(255, 215, 0, 0.3)'
+                      : '0 4px 15px rgba(0, 0, 0, 0.2)',
+                    transform: isSelected ? 'scale(1.05)' : 'scale(1)',
+                    color: isSelected ? '#1a202c' : 'white'
+                  }}
+                >
+                  <div style={{ fontSize: '40px', marginBottom: '12px' }}>
+                    {bikeEmoji}
+                  </div>
+                  <div style={{ 
+                    fontSize: '18px', 
+                    fontWeight: 'bold', 
+                    marginBottom: '6px',
+                    textShadow: isSelected ? 'none' : '0 1px 3px rgba(0, 0, 0, 0.3)'
+                  }}>
+                    {bike.name}
+                  </div>
+                  <div style={{ 
+                    fontSize: '13px', 
+                    opacity: isSelected ? 0.7 : 0.8, 
+                    marginBottom: '12px',
+                    fontWeight: '500'
+                  }}>
+                    {bikeTypeName} Bike #{bike.tokenId}
+                  </div>
+                  <div style={{ 
+                    fontSize: '12px', 
+                    opacity: isSelected ? 0.8 : 0.7,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontWeight: '600'
+                  }}>
+                    <span>⚡{bike.speed}</span>
+                    <span>🚀{bike.acceleration}</span>
+                    <span>🎯{bike.handling}</span>
+                  </div>
+                  {isSelected && (
+                    <div style={{
+                      marginTop: '12px',
+                      fontSize: '14px',
+                      color: '#1a202c',
+                      fontWeight: 'bold',
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      padding: '4px 8px',
+                      borderRadius: '8px',
+                      textShadow: 'none'
+                    }}>
+                      ✅ SELECTED
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Start Racing Button */}
+          <div style={{ textAlign: 'center', marginTop: '32px' }}>
+            <button
+              onClick={() => {
+                if (selectedBike) {
+                  const bikeTypeString = selectedBike.bikeType === BikeType.SPORTS ? "sports" : 
+                                        selectedBike.bikeType === BikeType.LADY ? "lady" : "chopper";
+                  handleStartGame(bikeTypeString);
+                }
+              }}
+              disabled={loading || !selectedBike}
+              style={{
+                padding: '20px 48px',
+                fontSize: '20px',
+                background: selectedBike 
+                  ? 'linear-gradient(135deg, #ff6b35 0%, #ff8c42 50%, #f9844a 100%)' 
+                  : 'rgba(255, 255, 255, 0.1)',
+                color: selectedBike ? '#ffffff' : 'rgba(255, 255, 255, 0.5)',
+                border: selectedBike 
+                  ? '3px solid #ff8c42' 
+                  : '2px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '16px',
+                cursor: selectedBike ? 'pointer' : 'not-allowed',
+                fontWeight: '800',
+                letterSpacing: '1px',
+                transition: 'all 0.3s ease',
+                backdropFilter: 'blur(10px)',
+                boxShadow: selectedBike 
+                  ? '0 8px 25px rgba(255, 107, 53, 0.4), 0 0 20px rgba(255, 140, 66, 0.3)'
+                  : 'none',
+                textShadow: selectedBike ? '0 2px 4px rgba(0, 0, 0, 0.3)' : 'none',
+                transform: selectedBike ? 'translateY(-2px)' : 'none'
+              }}
+              onMouseEnter={(e) => {
+                if (selectedBike) {
+                  e.currentTarget.style.transform = 'translateY(-4px) scale(1.05)';
+                  e.currentTarget.style.boxShadow = '0 12px 35px rgba(255, 107, 53, 0.5), 0 0 30px rgba(255, 140, 66, 0.4)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (selectedBike) {
+                  e.currentTarget.style.transform = 'translateY(-2px) scale(1)';
+                  e.currentTarget.style.boxShadow = '0 8px 25px rgba(255, 107, 53, 0.4), 0 0 20px rgba(255, 140, 66, 0.3)';
+                }
+              }}
+            >
+              {selectedBike 
+                ? `🚀 RACE WITH ${selectedBike.name.toUpperCase()}!` 
+                : '🏍️ SELECT A BIKE TO RACE'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* New User Section - No bikes owned */
+        <div style={{
+          marginBottom: '40px',
+          padding: '32px',
+          background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 50%, #f87171 100%)',
+          borderRadius: '20px',
+          color: 'white',
+          boxShadow: '0 20px 40px rgba(220, 38, 38, 0.3), 0 0 20px rgba(239, 68, 68, 0.2)',
+          border: '2px solid rgba(255, 255, 255, 0.1)',
+          textAlign: 'center'
         }}>
           <div style={{
-            width: '48px',
-            height: '48px',
-            background: 'rgba(255, 255, 255, 0.2)',
-            borderRadius: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 16px',
-            fontSize: '20px'
+            fontSize: '48px',
+            marginBottom: '16px'
           }}>
-            🎮
+            🏍️
           </div>
           <h3 style={{ 
-            fontSize: '20px',
-            fontWeight: '600',
-            marginBottom: '8px',
-            margin: '0 0 8px 0'
+            fontSize: '28px',
+            fontWeight: '700',
+            marginBottom: '12px',
+            margin: '0 0 12px 0',
+            textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
           }}>
-            Ready to Race!
+            MINT OR PURCHASE AN NFT BIKE TO START RACING
           </h3>
           <p style={{ 
-            marginBottom: '20px',
-            opacity: 0.9,
-            fontSize: '14px',
-            margin: '0 0 20px 0'
+            opacity: 0.95,
+            fontSize: '16px',
+            margin: '0 0 24px 0',
+            fontWeight: '500',
+            textShadow: '0 1px 3px rgba(0, 0, 0, 0.3)'
           }}>
-            You have {mintedBikeTypes.size} bike{mintedBikeTypes.size > 1 ? 's' : ''} ready for racing!
+            You need to own at least one NFT bike to participate in races!<br />
+            Choose from our collection of high-performance bikes below.
           </p>
-          <button
-            onClick={() => {
-              // Select the first available bike type for the game
-              const bikeTypes: ("sports" | "lady" | "chopper")[] = ["sports", "lady", "chopper"];
-              const availableBike = bikeTypes.find((type) => {
-                const bikeTypeEnum = type === "sports" ? BikeType.SPORTS : 
-                                   type === "lady" ? BikeType.LADY : BikeType.CHOPPER;
-                return mintedBikeTypes.has(bikeTypeEnum);
-              });
-              if (availableBike) {
-                handleStartGame(availableBike);
-              }
-            }}
-            disabled={loading}
-            style={{
-              padding: '12px 32px',
-              fontSize: '16px',
-              background: 'rgba(255, 255, 255, 0.2)',
-              color: 'white',
-              border: '2px solid rgba(255, 255, 255, 0.3)',
-              borderRadius: '12px',
-              cursor: 'pointer',
-              fontWeight: '600',
-              transition: 'all 0.2s ease',
-              backdropFilter: 'blur(10px)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-              e.currentTarget.style.transform = 'translateY(0px)';
-            }}
-          >
-            🚀 Start Racing!
-          </button>
+          <div style={{
+            padding: '16px',
+            background: 'rgba(255, 255, 255, 0.1)',
+            borderRadius: '12px',
+            backdropFilter: 'blur(10px)'
+          }}>
+            <p style={{ 
+              margin: '0',
+              fontSize: '14px',
+              opacity: 0.9,
+              fontWeight: '500'
+            }}>
+              👇 Scroll down to purchase your first NFT bike and start your racing journey!
+            </p>
+          </div>
         </div>
       )}
 
@@ -266,14 +416,14 @@ const GameMenu: React.FC<GameMenuProps> = ({ onBikeSelect }) => {
               marginBottom: '8px',
               margin: '0 0 8px 0'
             }}>
-              🏍️ NFT Bike Collection
+              🛒 Purchase New Bikes
             </h2>
             <p style={{
               fontSize: '16px',
               color: '#718096',
               margin: '0'
             }}>
-              Each bike has unique stats affecting your earnings. Better stats = more RACE tokens!
+              Mint NFT bikes to expand your collection. Each bike has unique stats affecting your earnings!
             </p>
           </div>
 

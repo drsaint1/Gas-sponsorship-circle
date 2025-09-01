@@ -33,7 +33,7 @@ interface BikeGameProps {
 }
 
 const BikeRunner: React.FC<BikeGameProps> = ({ bikeType, onBackToMenu }) => {
-  const { completeCurrentGame, playerRewards, raceTokenBalance, selectedBike, claimPlayerRewards, loading } = useGame();
+  const { completeCurrentGame, playerRewards, raceTokenBalance, selectedBike, walletRaceTokenBalance, loading } = useGame();
   // Three.js refs
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | undefined>(undefined);
@@ -1381,9 +1381,9 @@ const BikeRunner: React.FC<BikeGameProps> = ({ bikeType, onBackToMenu }) => {
 
   // Chopper Bike Creation Function (Heavy Duty Design)
   const createChopperBike = (bikeGroup: THREE.Group) => {
-    // Heavy main frame - black and chrome
+    // Heavy main frame - deep blue metallic
     const frameGeometry = new THREE.BoxGeometry(0.15, 0.12, 3.0);
-    const frameMaterial = new THREE.MeshLambertMaterial({ color: 0x000000 }); // Black frame
+    const frameMaterial = new THREE.MeshLambertMaterial({ color: 0x1e3a8a }); // Deep blue frame
     const mainFrame = new THREE.Mesh(frameGeometry, frameMaterial);
     mainFrame.position.set(0, 0.9, 0);
     mainFrame.castShadow = true;
@@ -1399,7 +1399,7 @@ const BikeRunner: React.FC<BikeGameProps> = ({ bikeType, onBackToMenu }) => {
 
     // Large V-twin engine
     const engineGeometry = new THREE.BoxGeometry(0.8, 0.7, 0.6);
-    const engineMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 }); // Dark gray engine
+    const engineMaterial = new THREE.MeshLambertMaterial({ color: 0x7c3aed }); // Purple engine
     const engine = new THREE.Mesh(engineGeometry, engineMaterial);
     engine.position.set(0, 0.6, 0);
     engine.castShadow = true;
@@ -1419,7 +1419,7 @@ const BikeRunner: React.FC<BikeGameProps> = ({ bikeType, onBackToMenu }) => {
 
     // Large teardrop gas tank
     const tankGeometry = new THREE.SphereGeometry(0.5, 16, 8);
-    const tankMaterial = new THREE.MeshLambertMaterial({ color: 0x1a1a1a }); // Dark black tank
+    const tankMaterial = new THREE.MeshLambertMaterial({ color: 0xfbbf24 }); // Golden yellow tank
     const tank = new THREE.Mesh(tankGeometry, tankMaterial);
     tank.scale.set(1.2, 0.8, 1.6);
     tank.position.set(0, 1.1, 0.3);
@@ -1436,7 +1436,7 @@ const BikeRunner: React.FC<BikeGameProps> = ({ bikeType, onBackToMenu }) => {
 
     // Large wheels with chrome rims
     const wheelGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.2);
-    const wheelMaterial = new THREE.MeshLambertMaterial({ color: 0x111111 }); // Black tire
+    const wheelMaterial = new THREE.MeshLambertMaterial({ color: 0x374151 }); // Dark gray tire
     const rimGeometry = new THREE.CylinderGeometry(0.35, 0.35, 0.22);
     const rimMaterial = new THREE.MeshLambertMaterial({ color: 0xc0c0c0 }); // Chrome rim
 
@@ -1477,7 +1477,7 @@ const BikeRunner: React.FC<BikeGameProps> = ({ bikeType, onBackToMenu }) => {
 
     // Handlebar grips
     const gripGeometry = new THREE.CylinderGeometry(0.04, 0.04, 0.2);
-    const gripMaterial = new THREE.MeshLambertMaterial({ color: 0x000000 }); // Black grips
+    const gripMaterial = new THREE.MeshLambertMaterial({ color: 0xef4444 }); // Red grips
     const leftGrip = new THREE.Mesh(gripGeometry, gripMaterial);
     leftGrip.rotation.z = Math.PI / 2;
     leftGrip.position.set(-0.5, 1.5, 1.1);
@@ -1708,48 +1708,207 @@ const BikeRunner: React.FC<BikeGameProps> = ({ bikeType, onBackToMenu }) => {
         }}
       />
 
-      {/* Game UI */}
+      {/* Back Button */}
+      {onBackToMenu && (
+        <button
+          onClick={onBackToMenu}
+          style={{
+            position: "absolute",
+            top: "80px",
+            right: "20px",
+            zIndex: 150,
+            padding: "12px 20px",
+            fontSize: "16px",
+            fontWeight: "bold",
+            background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+            color: "white",
+            border: "2px solid rgba(255, 255, 255, 0.2)",
+            borderRadius: "12px",
+            cursor: "pointer",
+            textShadow: "0 1px 3px rgba(0,0,0,0.3)",
+            boxShadow: "0 4px 15px rgba(239, 68, 68, 0.3), 0 2px 8px rgba(0,0,0,0.2)",
+            transition: "all 0.2s ease",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            backdropFilter: "blur(10px)"
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = "translateY(-2px) scale(1.05)";
+            e.currentTarget.style.boxShadow = "0 6px 20px rgba(239, 68, 68, 0.4), 0 3px 12px rgba(0,0,0,0.3)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = "translateY(0) scale(1)";
+            e.currentTarget.style.boxShadow = "0 4px 15px rgba(239, 68, 68, 0.3), 0 2px 8px rgba(0,0,0,0.2)";
+          }}
+        >
+          <span style={{ fontSize: "18px" }}>←</span> BACK TO MENU
+        </button>
+      )}
+
+      {/* Enhanced Game Stats Panel */}
       <div
         style={{
           position: "absolute",
           top: "20px",
           left: "20px",
+          padding: "20px",
+          background: "linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(30,30,50,0.9) 100%)",
+          borderRadius: "16px",
+          border: "2px solid rgba(255,255,255,0.1)",
+          backdropFilter: "blur(15px)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.3), 0 0 20px rgba(102, 126, 234, 0.1)",
           color: "white",
-          fontSize: "24px",
-          fontWeight: "bold",
-          textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
+          minWidth: "220px",
+          textShadow: "0 1px 3px rgba(0,0,0,0.5)",
         }}
       >
-        <div>Score: {score.toLocaleString()}</div>
-        <div>Speed: {speed.toFixed(1)}x</div>
-        <div style={{ fontSize: "16px" }}>
-          Distance: {gameStatsDisplay.distance}m
+        {/* Title */}
+        <div style={{ 
+          fontSize: "18px", 
+          fontWeight: "bold", 
+          marginBottom: "16px",
+          textAlign: "center",
+          background: "linear-gradient(45deg, #ffd700, #ffed4a)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          backgroundClip: "text"
+        }}>
+          🏍️ RACE STATS
         </div>
-        <div style={{ fontSize: "14px", opacity: 0.8 }}>
-          Vehicles Dodged: {gameStatsDisplay.vehiclesDodged}
+
+        {/* Main Stats */}
+        <div style={{ marginBottom: "16px" }}>
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: "8px", 
+            marginBottom: "8px",
+            fontSize: "20px",
+            fontWeight: "bold"
+          }}>
+            <span style={{ color: "#ffd700" }}>🏆</span>
+            <span style={{ color: "#ffd700" }}>{score.toLocaleString()}</span>
+          </div>
+          
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: "8px", 
+            marginBottom: "8px",
+            fontSize: "18px",
+            fontWeight: "600"
+          }}>
+            <span style={{ color: "#00ff88" }}>⚡</span>
+            <span>{speed.toFixed(1)}x Speed</span>
+          </div>
+          
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: "8px", 
+            marginBottom: "8px",
+            fontSize: "16px"
+          }}>
+            <span style={{ color: "#ff6b35" }}>📏</span>
+            <span>{gameStatsDisplay.distance}m Distance</span>
+          </div>
         </div>
-        <div style={{ fontSize: "14px", opacity: 0.8 }}>
-          Bonus Collected: {gameStatsDisplay.bonusBoxesCollected}
+
+        {/* Secondary Stats */}
+        <div style={{ 
+          borderTop: "1px solid rgba(255,255,255,0.1)",
+          paddingTop: "12px",
+          marginBottom: "12px"
+        }}>
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: "8px", 
+            marginBottom: "6px",
+            fontSize: "14px",
+            opacity: 0.9
+          }}>
+            <span style={{ color: "#ff4444" }}>🚗</span>
+            <span>{gameStatsDisplay.vehiclesDodged} Dodged</span>
+          </div>
+          
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: "8px", 
+            fontSize: "14px",
+            opacity: 0.9
+          }}>
+            <span style={{ color: "#ffaa00" }}>🎁</span>
+            <span>{gameStatsDisplay.bonusBoxesCollected} Collected</span>
+          </div>
         </div>
         {playerProfile && (
-          <div style={{ fontSize: "14px", marginTop: "10px" }}>
-            <div>
-              Level {playerProfile.level} • XP: {playerProfile.totalXp}
+          <div style={{ 
+            borderTop: "1px solid rgba(255,255,255,0.1)",
+            paddingTop: "12px"
+          }}>
+            <div style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              gap: "8px", 
+              marginBottom: "8px",
+              fontSize: "15px",
+              fontWeight: "600"
+            }}>
+              <span style={{ color: "#a855f7" }}>⭐</span>
+              <span>Level {playerProfile.level}</span>
+              <span style={{ 
+                fontSize: "12px", 
+                opacity: 0.7,
+                background: "rgba(168, 85, 247, 0.2)",
+                padding: "2px 6px",
+                borderRadius: "6px"
+              }}>
+                {playerProfile.totalXp} XP
+              </span>
             </div>
-            <div style={{ fontSize: "12px", opacity: 0.8 }}>
-              High Score: {playerProfile.highScore.toLocaleString()}
+            <div style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              gap: "8px", 
+              marginBottom: "4px",
+              fontSize: "12px", 
+              opacity: 0.8
+            }}>
+              <span style={{ color: "#10b981" }}>🎯</span>
+              <span>Best: {playerProfile.highScore.toLocaleString()}</span>
             </div>
-            <div style={{ fontSize: "12px", opacity: 0.8 }}>
-              Games Played: {playerProfile.gamesPlayed}
+            <div style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              gap: "8px", 
+              fontSize: "12px", 
+              opacity: 0.8
+            }}>
+              <span style={{ color: "#3b82f6" }}>🎮</span>
+              <span>{playerProfile.gamesPlayed} Games</span>
             </div>
           </div>
         )}
 
         {invisibilityActive && (
           <div
-            style={{ color: "#ffff00", fontSize: "20px", marginTop: "10px" }}
+            style={{ 
+              marginTop: "12px",
+              padding: "8px 12px",
+              background: "linear-gradient(45deg, #ffd700, #ffaa00)",
+              borderRadius: "8px",
+              color: "#1a1a1a",
+              fontSize: "14px",
+              fontWeight: "bold",
+              textAlign: "center",
+              boxShadow: "0 0 20px rgba(255, 215, 0, 0.5)",
+              animation: "pulse 1s ease-in-out infinite alternate"
+            }}
           >
-            ⚡ INVISIBLE MODE: {invisibilityCountdown}s ⚡
+            ⚡ INVISIBLE: {invisibilityCountdown}s ⚡
           </div>
         )}
       </div>
@@ -1955,10 +2114,10 @@ const BikeRunner: React.FC<BikeGameProps> = ({ bikeType, onBackToMenu }) => {
               }}>
                 <div>
                   <div style={{ color: "#ffd700", fontSize: "18px", fontWeight: "bold" }}>
-                    💰 Total Balance: {raceTokenBalance.toLocaleString()} RACE
+                    💰 Wallet Balance: {walletRaceTokenBalance.toFixed(2)} RACE
                   </div>
                   <div style={{ color: "#ffffff", fontSize: "14px", opacity: 0.7 }}>
-                    Unclaimed: {playerRewards} tokens
+                    🎉 Tokens automatically claimed to your wallet!
                   </div>
                 </div>
                 {playerProfile && (
@@ -1981,30 +2140,24 @@ const BikeRunner: React.FC<BikeGameProps> = ({ bikeType, onBackToMenu }) => {
               justifyContent: "center",
               flexWrap: "wrap"
             }}>
-              {/* Claim Tokens Button */}
-              {parseInt(playerRewards) > 0 && (
-                <button
-                  onClick={claimPlayerRewards}
-                  disabled={loading}
-                  style={{
-                    background: loading 
-                      ? "linear-gradient(45deg, #888, #999)"
-                      : "linear-gradient(45deg, #ffd700, #ffed4e)",
-                    border: "2px solid rgba(255,215,0,0.5)",
-                    color: loading ? "#ccc" : "black",
-                    padding: "16px 32px",
-                    fontSize: "16px",
-                    fontWeight: "bold",
-                    borderRadius: "12px",
-                    cursor: loading ? "not-allowed" : "pointer",
-                    boxShadow: loading ? "none" : "0 6px 20px rgba(255,215,0,0.3)",
-                    transition: "all 0.2s ease",
-                    textShadow: loading ? "none" : "0 1px 2px rgba(0,0,0,0.2)"
-                  }}
-                >
-                  {loading ? "⏳ Claiming..." : `💰 Claim ${playerRewards} Tokens`}
-                </button>
-              )}
+              {/* Rewards Auto-Claimed Message */}
+              <div style={{
+                background: "linear-gradient(45deg, #28a745, #20c997)",
+                border: "2px solid rgba(40,167,69,0.5)",
+                color: "white",
+                padding: "16px 32px",
+                fontSize: "16px",
+                fontWeight: "bold",
+                borderRadius: "12px",
+                boxShadow: "0 6px 20px rgba(40,167,69,0.3)",
+                textAlign: "center",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px"
+              }}>
+                ✅ Rewards Automatically Claimed to Your Wallet!
+              </div>
 
               {/* Race Again Button */}
               <button

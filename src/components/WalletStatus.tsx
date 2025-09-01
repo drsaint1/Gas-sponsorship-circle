@@ -8,6 +8,7 @@ const WalletStatus: React.FC = () => {
     smartAccountAddress,
     usdcBalance, 
     playerRewards,
+    walletRaceTokenBalance,
     loading,
     claimPlayerRewards,
     refreshData,
@@ -87,6 +88,11 @@ const WalletStatus: React.FC = () => {
                 Claim
               </button>
             )}
+          </div>
+          
+          <div className="balance-item">
+            <span className="balance-label">🏆 RACE Wallet:</span>
+            <span className="balance-value">{walletRaceTokenBalance.toFixed(2)}</span>
           </div>
         </div>
         

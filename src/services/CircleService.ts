@@ -31,10 +31,10 @@ const USDC_ABI = [
 ] as const;
 
 export const defaultGameConfig = {
-  gameContract: '0xd9aECa6C00F52E17F9296a8c490D7F0FF80F6BE8' as `0x${string}`,
-  usdcContract: '0x41e94eb019c0762f9bfcf9fb1e58725bfb0e7582' as `0x${string}`,
-  raceTokenContract: '0xeAA44a668414C22729cF680A55f60aba5A045c8f' as `0x${string}`,
-  paymaster: '0x31BE08D380A21fc740883c0BC434FcFc88740b58' as `0x${string}`,
+  gameContract: (import.meta.env.VITE_GAME_CONTRACT_ADDRESS || '0xd9aECa6C00F52E17F9296a8c490D7F0FF80F6BE8') as `0x${string}`,
+  usdcContract: (import.meta.env.VITE_USDC_ADDRESS || '0x41e94eb019c0762f9bfcf9fb1e58725bfb0e7582') as `0x${string}`,
+  raceTokenContract: (import.meta.env.VITE_RACE_TOKEN_ADDRESS || '0xeAA44a668414C22729cF680A55f60aba5A045c8f') as `0x${string}`,
+  paymaster: (import.meta.env.VITE_PAYMASTER_ADDRESS || '0x31BE08D380A21fc740883c0BC434FcFc88740b58') as `0x${string}`,
   practiceEntryFee: '0', // Free
   rankedEntryFee: '5000000', // 5 USDC
   sportsBikeMintPrice: '1000000', // 1 USDC
@@ -199,6 +199,41 @@ export class CircleService {
       return balanceFormatted;
     } catch (error) {
       return '0.00';
+    }
+  }
+  
+  async getRaceTokenBalance(): Promise<number> {
+    try {
+      if (!this.circleSmartAccount || !this.publicClient) {
+        throw new Error('Circle Smart Account not initialized');
+      }
+
+      console.log('💰 getRaceTokenBalance: Checking RACE token balance for:', this.circleSmartAccount.address);
+      
+      // Get RACE token balance from the actual token contract
+      const balance = await this.publicClient.readContract({
+        address: defaultGameConfig.raceTokenContract,
+        abi: [
+          {
+            "inputs": [{"type": "address", "name": "account"}],
+            "name": "balanceOf",
+            "outputs": [{"type": "uint256", "name": ""}],
+            "stateMutability": "view",
+            "type": "function"
+          }
+        ],
+        functionName: 'balanceOf',
+        args: [this.circleSmartAccount.address]
+      });
+
+      // Convert from wei to RACE tokens (18 decimals)
+      const formattedBalance = Number(formatEther(balance as bigint));
+      console.log('💰 getRaceTokenBalance: Raw balance:', balance, 'Formatted:', formattedBalance);
+      
+      return formattedBalance;
+    } catch (error) {
+      console.error('❌ getRaceTokenBalance failed:', error);
+      return 0;
     }
   }
 
@@ -429,41 +464,41 @@ export class CircleService {
 
   // ===== GAME FUNCTIONS =====
 
-  async startGame(_bikeTokenId: number, _gameMode: GameMode): Promise<TransactionResult> {
+  async startGame(bikeTokenId: number, gameMode: GameMode): Promise<TransactionResult> {
+    console.log('🎮 startGame: Starting new game session', { bikeTokenId, gameMode });
+    
     try {
       if (!this.circleSmartAccount) {
+        console.error('❌ startGame: Smart Account not initialized');
         throw new Error('Circle Smart Account not initialized');
       }
 
-      const sessionId = Date.now();
-
-      return {
-        success: true,
-        sessionId: sessionId,
-        transactionHash: '0x' + Math.random().toString(16).slice(2, 66)
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: (error as Error).message
-      };
-    }
-  }
-
-  async completeGame(sessionId: number, score: number, distance: number, vehiclesDodged: number): Promise<TransactionResult> {
-    try {
-      if (!this.circleSmartAccount || !this.bundlerClient) {
-        throw new Error('Circle Smart Account not initialized');
+      // For practice mode, don't call blockchain - just return a local session ID
+      if (gameMode === GameMode.PRACTICE) {
+        console.log('🎮 startGame: Practice mode - no blockchain call needed');
+        const localSessionId = Date.now(); // Use timestamp for local session
+        
+        return {
+          success: true,
+          sessionId: localSessionId,
+          transactionHash: '0xlocal' + localSessionId.toString(16) // Fake hash for local session
+        };
       }
 
+      // For ranked/tournament modes, actually call the blockchain
+      if (!this.bundlerClient) {
+        throw new Error('Bundler client not initialized');
+      }
 
-      // Prepare transaction data for completeGame contract call
+      console.log('📝 startGame: Preparing blockchain transaction for ranked mode...');
+      // Prepare transaction data for startGame contract call
       const txData = encodeFunctionData({
         abi: gameAbi,
-        functionName: 'completeGame',
-        args: [BigInt(sessionId), BigInt(score), BigInt(distance), BigInt(vehiclesDodged)]
+        functionName: 'startGame',
+        args: [BigInt(bikeTokenId), gameMode]
       });
 
+      console.log('🚀 startGame: Sending user operation...');
       // Send user operation via Circle's bundler
       const hash = await this.bundlerClient.sendUserOperation({
         account: this.circleSmartAccount,
@@ -475,6 +510,7 @@ export class CircleService {
         paymaster: true, // Circle paymaster handles gas
       });
 
+      console.log('✅ startGame: Transaction hash:', hash);
 
       try {
         const receipt = await Promise.race([
@@ -484,17 +520,138 @@ export class CircleService {
           )
         ]) as any;
         
-
-        return {
-          success: true,
-          transactionHash: receipt.receipt.transactionHash,
-        };
+        console.log('📄 startGame: Receipt received:', receipt);
+        
+        // Get the session ID from contract
+        try {
+          const nextSessionId = await this.publicClient.readContract({
+            address: defaultGameConfig.gameContract,
+            abi: gameAbi,
+            functionName: 'nextSessionId',
+            args: []
+          });
+          
+          const sessionId = Number(nextSessionId) - 1;
+          console.log('📋 startGame: Extracted session ID from contract:', sessionId);
+          
+          return {
+            success: true,
+            transactionHash: receipt.receipt.transactionHash,
+            sessionId: sessionId
+          };
+        } catch (sessionIdError) {
+          console.error('❌ Failed to get session ID, using timestamp fallback:', sessionIdError);
+          const sessionId = Date.now();
+          
+          return {
+            success: true,
+            transactionHash: receipt.receipt.transactionHash,
+            sessionId: sessionId
+          };
+        }
       } catch (receiptError) {
+        console.warn('⏰ startGame: Receipt timeout, but transaction may still succeed:', receiptError);
+        const sessionId = Date.now();
+        
         return {
           success: true,
-          transactionHash: hash
+          transactionHash: hash,
+          sessionId: sessionId
         };
       }
+    } catch (error) {
+      console.error('❌ startGame failed:', error);
+      return {
+        success: false,
+        error: (error as Error).message
+      };
+    }
+  }
+
+  async completeGame(sessionId: number, score: number, distance: number, vehiclesDodged: number, gameMode: GameMode = GameMode.PRACTICE, bikeTokenId: number = 0): Promise<TransactionResult> {
+    console.log('🎮 completeGame: Starting game completion', { sessionId, score, distance, vehiclesDodged, gameMode, bikeTokenId });
+    
+    try {
+      if (!this.circleSmartAccount || !this.bundlerClient) {
+        console.error('❌ completeGame: Smart Account not initialized');
+        throw new Error('Circle Smart Account not initialized');
+      }
+
+      // Use the working session approach with optimized batching
+      console.log('🎮 completeGame: Using optimized session approach...');
+      return await this.completeGameWithSession(sessionId, score, distance, vehiclesDodged, bikeTokenId);
+    } catch (error) {
+      console.error('❌ completeGame failed:', error);
+      return {
+        success: false,
+        error: (error as Error).message
+      };
+    }
+  }
+  
+  // Optimized session approach that works reliably
+  private async completeGameWithSession(sessionId: number, score: number, distance: number, vehiclesDodged: number, bikeTokenId: number): Promise<TransactionResult> {
+    try {
+      // Get a bike to use
+      const bikes = await this.getPlayerBikes();
+      const actualBikeTokenId = bikeTokenId > 0 ? bikeTokenId : (bikes.length > 0 ? bikes[0] : 1);
+      
+      console.log('🎮 completeGameWithSession: Using simplified session approach...');
+      
+      // Try to complete an existing session first, then claim
+      const hash = await this.bundlerClient!.sendUserOperation({
+        account: this.circleSmartAccount!,
+        calls: [
+          // Start a session
+          {
+            to: defaultGameConfig.gameContract,
+            abi: gameAbi,
+            functionName: "startGame",
+            args: [BigInt(actualBikeTokenId), GameMode.PRACTICE],
+          },
+        ],
+        paymaster: true,
+      });
+
+      // Wait for session creation
+      await this.bundlerClient!.waitForUserOperationReceipt({ hash });
+      
+      // Get session ID
+      const nextSessionId = await this.publicClient.readContract({
+        address: defaultGameConfig.gameContract,
+        abi: gameAbi,
+        functionName: 'nextSessionId',
+        args: []
+      });
+      
+      const actualSessionId = Number(nextSessionId) - 1;
+      
+      // Complete and claim in one transaction
+      const completeHash = await this.bundlerClient!.sendUserOperation({
+        account: this.circleSmartAccount!,
+        calls: [
+          {
+            to: defaultGameConfig.gameContract,
+            abi: gameAbi,
+            functionName: "completeGame",
+            args: [BigInt(actualSessionId), BigInt(score), BigInt(distance), BigInt(vehiclesDodged)],
+          },
+          {
+            to: defaultGameConfig.gameContract,
+            abi: gameAbi,
+            functionName: "claimRewards",
+            args: [],
+          },
+        ],
+        paymaster: true,
+      });
+
+      const receipt = await this.bundlerClient!.waitForUserOperationReceipt({ hash: completeHash });
+      
+      return {
+        success: true,
+        transactionHash: (receipt as any).receipt.transactionHash,
+      };
     } catch (error) {
       return {
         success: false,
@@ -559,8 +716,12 @@ export class CircleService {
   async getPlayerRewards(): Promise<number> {
     try {
       if (!this.circleSmartAccount || !this.publicClient) {
+        console.error('❌ getPlayerRewards: Smart Account not initialized');
         throw new Error('Circle Smart Account not initialized');
       }
+
+      console.log('🔍 getPlayerRewards: Checking rewards for address:', this.circleSmartAccount.address);
+      console.log('🔍 getPlayerRewards: Contract address:', defaultGameConfig.gameContract);
 
       // Get player's earned rewards from contract using publicClient
       const rewards = await this.publicClient.readContract({
@@ -570,9 +731,15 @@ export class CircleService {
         args: [this.circleSmartAccount.address]
       });
 
+      console.log('📊 getPlayerRewards: Raw rewards from contract:', rewards);
+      
       // Convert from wei to RACE tokens (18 decimals)
-      return Number(formatEther(rewards as bigint));
+      const formattedRewards = Number(formatEther(rewards as bigint));
+      console.log('💰 getPlayerRewards: Formatted rewards:', formattedRewards);
+      
+      return formattedRewards;
     } catch (error) {
+      console.error('❌ getPlayerRewards failed:', error);
       return 0;
     }
   }

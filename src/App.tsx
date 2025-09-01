@@ -11,22 +11,20 @@ import './App.css'
 const environmentId = import.meta.env.VITE_DYNAMIC_ENV_ID as string;
 
 function AppContent() {
-  const [selectedBike, setSelectedBike] = useState<"sports" | "lady" | "chopper" | null>(null);
   const [showGame, setShowGame] = useState(false);
-  const { isConnected } = useGame();
+  const { isConnected, selectedBike, circleService } = useGame();
 
   const handleBikeSelect = (bikeType: "sports" | "lady" | "chopper") => {
-    setSelectedBike(bikeType);
     setShowGame(true);
   };
 
   const handleBackToMenu = () => {
     setShowGame(false);
-    setSelectedBike(null);
   };
 
-  if (showGame && selectedBike) {
-    return <BikeRunner bikeType={selectedBike} onBackToMenu={handleBackToMenu} />;
+  if (showGame && selectedBike && circleService) {
+    const bikeTypeString = circleService.getBikeTypeString(selectedBike.bikeType);
+    return <BikeRunner bikeType={bikeTypeString} onBackToMenu={handleBackToMenu} />;
   }
 
   // Show welcome screen if not connected - Dynamic widget handles connection
